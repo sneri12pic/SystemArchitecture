@@ -1,3 +1,9 @@
+# Maven and build outputs
+target/
+.idea/
+.vscode/
+*.iml
+
 # Compiled class file
 *.class
 
