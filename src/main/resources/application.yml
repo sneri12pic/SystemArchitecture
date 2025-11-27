@@ -1,0 +1,94 @@
+spring:
+  application:
+    name: destore-prototype
+  jackson:
+    serialization:
+      INDENT_OUTPUT: true
+  profiles:
+    active: monolith
+
+server:
+  port: 8080
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+destore:
+  kafka:
+    enabled: false
+    topic: stock-low
+
+---
+spring:
+  config:
+    activate:
+      on-profile: pricing
+  application:
+    name: pricing-service
+server:
+  port: 8081
+
+---
+spring:
+  config:
+    activate:
+      on-profile: inventory
+  application:
+    name: inventory-service
+server:
+  port: 8082
+
+---
+spring:
+  config:
+    activate:
+      on-profile: loyalty
+  application:
+    name: loyalty-service
+server:
+  port: 8083
+
+---
+spring:
+  config:
+    activate:
+      on-profile: finance
+  application:
+    name: finance-service
+server:
+  port: 8084
+
+---
+spring:
+  config:
+    activate:
+      on-profile: reporting
+  application:
+    name: reporting-service
+server:
+  port: 8085
+
+---
+spring:
+  config:
+    activate:
+      on-profile: notifications
+  application:
+    name: notification-service
+server:
+  port: 8086
+
+---
+spring:
+  config:
+    activate:
+      on-profile: kafka
+  kafka:
+    bootstrap-servers: localhost:9092
+destore:
+  kafka:
+    enabled: true
+    topic: stock-low
