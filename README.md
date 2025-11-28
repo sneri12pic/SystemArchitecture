@@ -9,15 +9,15 @@ DE-Store prototype (architecture-visible, service-oriented). Please adapt, exten
 1) Prereqs: JDK 17+, Maven 3.8+. No DB needed (in-memory state).
 2) Default modular-monolith: `mvn spring-boot:run` (uses local repo `.m2` in project to avoid home-folder permission issues).
 3) Per-service ports (for stronger SOA evidence; run each in its own shell):
-   - Pricing: `mvn spring-boot:run -Dspring-boot.run.profiles=pricing` (port 8081)
-   - Inventory + notifications: `mvn spring-boot:run -Dspring-boot.run.profiles=inventory` (port 8082)
-   - Loyalty: `mvn spring-boot:run -Dspring-boot.run.profiles=loyalty` (port 8083)
-   - Finance gateway: `mvn spring-boot:run -Dspring-boot.run.profiles=finance` (port 8084)
+   - Pricing: `mvn spring-boot:run "-Dspring-boot.run.profiles=pricing"` (port 8081)
+   - Inventory + notifications: `mvn spring-boot:run "-Dspring-boot.run.profiles=inventory"` (port 8082)
+   - Loyalty: `mvn spring-boot:run "-Dspring-boot.run.profiles=loyalty"` (port 8083)
+   - Finance gateway: `mvn spring-boot:run "-Dspring-boot.run.profiles=finance"` (port 8084)
    - Reporting aggregator (monolith-only in this prototype): stay on default run
 4) API base default: `http://localhost:8080` (see key endpoints below).
 5) Optional Kafka for stock-low alerts (improves SOA/eventing story):
-   - Start Kafka locally (or point `spring.kafka.bootstrap-servers` at a broker).
-   - Run with `-Dspring-boot.run.profiles=inventory,kafka` and `-Dspring-boot.run.profiles=notifications,kafka`.
+   - Start Kafka via Docker Compose (required): `docker-compose up -d` from project root. If `docker-compose` / `docker compose` is not available, install/enable the Docker Compose plugin in Docker Desktop first.
+   - Run with `mvn spring-boot:run "-Dspring-boot.run.profiles=inventory,kafka"` (inventory on 8082) and `mvn spring-boot:run "-Dspring-boot.run.profiles=notifications,kafka"` (notifications on 8086). Quoting the profiles avoids Maven mis-parsing on some shells.
    - Notifications will consume the `stock-low` topic; inventory publishes when stock is below threshold.
 
 ## Key endpoints (happy-path smoke test)

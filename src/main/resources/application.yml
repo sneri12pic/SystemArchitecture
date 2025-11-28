@@ -88,6 +88,13 @@ spring:
       on-profile: kafka
   kafka:
     bootstrap-servers: localhost:9092
+    template:
+      default-topic: stock-low
+    listener:
+      missing-topics-fatal: false
+    consumer:
+      group-id: destore-notifications
+      auto-offset-reset: earliest
 destore:
   kafka:
     enabled: true

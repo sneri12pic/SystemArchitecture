@@ -2,6 +2,7 @@ package com.destore.inventory;
 
 import com.destore.common.events.StockLowEvent;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.annotation.Profile;
 import org.springframework.kafka.core.KafkaTemplate;
@@ -17,12 +18,15 @@ public class InventoryService {
 
     private final Map<String, InventoryItem> items = new ConcurrentHashMap<>();
     private final ApplicationEventPublisher eventPublisher;
-    private final KafkaTemplate<String, String> kafkaTemplate; // optional, only active when Kafka is configured
+    private final KafkaTemplate<String, String> kafkaTemplate;
+    private final String kafkaTopic;
 
     public InventoryService(ApplicationEventPublisher eventPublisher,
-                            ObjectProvider<KafkaTemplate<String, String>> kafkaTemplateProvider) {
+                            ObjectProvider<KafkaTemplate<String, String>> kafkaTemplateProvider,
+                            @Value("${destore.kafka.topic:stock-low}") String kafkaTopic) {
         this.eventPublisher = eventPublisher;
         this.kafkaTemplate = kafkaTemplateProvider.getIfAvailable();
+        this.kafkaTopic = kafkaTopic;
         // Seed example stock so the prototype shows alerts immediately.
         items.put("SKU-100", new InventoryItem("SKU-100", 12, 5));
         items.put("SKU-200", new InventoryItem("SKU-200", 3, 4));
@@ -60,7 +64,7 @@ public class InventoryService {
             eventPublisher.publishEvent(event); // local/in-memory pathway
             if (kafkaTemplate != null) {
                 String payload = "Stock low for %s: %d (threshold %d)".formatted(item.sku(), item.stock(), item.reorderThreshold());
-                kafkaTemplate.sendDefault(payload);
+                kafkaTemplate.send(kafkaTopic, payload);
             }
         }
     }
