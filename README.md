@@ -1,63 +1,77 @@
-DE-Store prototype (architecture-visible, service-oriented). Please adapt, extend, and reference this in your own words for coursework use.
+DE-Store Prototype (Service-Oriented Modular Monolith)
 
-## What this shows
-- SOA/microservice-aligned modular monolith: separate controllers/services per bounded context (pricing, inventory, loyalty, finance gateway, reporting, notifications).
-- Connectors/protocols: REST/HTTP + JSON, Spring events for async stock alerts, stub external call for finance (Enabling).
-- Quality hooks: modifiability (clear packages), integrability (stub adapter), observability (Actuator), basic validation.
+This README blends the codebase overview with the coursework report outline. Default port is 8087.
 
-## How to run
-1) Prereqs: JDK 17+, Maven 3.8+. No DB needed (in-memory state).
-2) Default modular-monolith: `mvn spring-boot:run` (uses local repo `.m2` in project to avoid home-folder permission issues). Default port is 8087; adjust with `-Dspring-boot.run.arguments=--server.port=XXXX` if needed.
-3) Per-service ports (for stronger SOA evidence; run each in its own shell):
-   - Pricing: `mvn spring-boot:run "-Dspring-boot.run.profiles=pricing" "-Dspring-boot.run.arguments=--server.port=8081"` 
-   - Inventory + notifications: `mvn spring-boot:run "-Dspring-boot.run.profiles=inventory" "-Dspring-boot.run.arguments=--server.port=8082"`
-   - Loyalty: `mvn spring-boot:run "-Dspring-boot.run.profiles=loyalty" "-Dspring-boot.run.arguments=--server.port=8083"`
-   - Finance gateway: `mvn spring-boot:run "-Dspring-boot.run.profiles=finance" "-Dspring-boot.run.arguments=--server.port=8084"`
-   - Reporting aggregator (monolith-only in this prototype): stay on default run
-4) API base default: `http://localhost:8087` (see key endpoints below).
-5) Optional Kafka for stock-low alerts (improves SOA/eventing story):
-   - Start Kafka via Docker Compose (required): `docker-compose up -d` from project root. If `docker-compose` / `docker compose` is not available, install/enable the Docker Compose plugin in Docker Desktop first.
-   - Run with `mvn spring-boot:run "-Dspring-boot.run.profiles=inventory,kafka" "-Dspring-boot.run.arguments=--server.port=8082"` and `mvn spring-boot:run "-Dspring-boot.run.profiles=notifications,kafka" "-Dspring-boot.run.arguments=--server.port=8086"`. Quoting the profiles avoids Maven mis-parsing on some shells.
-   - Notifications will consume the `stock-low` topic; inventory publishes when stock is below threshold.
-6) Simple UI: when running the monolith, open `http://localhost:8080` to use the static UI (see `src/main/resources/static/index.html`) to exercise endpoints without curl.
-7) Persistence: PostgreSQL via Docker Compose (`postgres` service with volume `pgdata`). Inventory is persisted via Spring Data JPA; other bounded contexts remain in-memory.
-8) Containers: Dockerfile provided. To run everything via Compose (monolith + Postgres + Kafka):
-   - `docker-compose up --build destore-app` (or `docker-compose up --build` to start all services)
-   - App exposed on `localhost:8087`, uses Postgres service `destore-postgres`, Kafka `kafka:9092`, active profiles `monolith,kafka`.
+## Run Modes
+- Monolith + Gateway (default): `mvn spring-boot:run "-Dspring-boot.run.profiles=monolith,gateway"` (UI and APIs on 8087).
+- With Kafka: add `,kafka` (Kafka must be running): `mvn spring-boot:run "-Dspring-boot.run.profiles=monolith,gateway,kafka"`.
+- Split services (demo only): run each profile on its own port (pricing 8081, inventory 8082, loyalty 8083, finance 8084, notifications 8086) and point gateway targets (`destore.gateway.*`) to those ports.
+- Override port: add `"-Dspring-boot.run.arguments=--server.port=XXXX --destore.gateway.*=http://localhost:XXXX"`.
 
-## Key endpoints (happy-path smoke test)
-- Pricing
-  - `GET /pricing/rules` (seeded rules: BOGOF, 3-for-2, loyalty 10%, free delivery)
-  - `POST /pricing/price` with body:
-    ```json
-    {"sku":"SKU-100","unitPrice":10,"quantity":3,"promotionRuleId":"R-342"}
-    ```
-- Inventory
-  - `GET /inventory` (seeded SKU-100=12, SKU-200=3; SKU-200 will trigger low-stock)
-  - `POST /inventory/adjust` with body `{"sku":"SKU-200","delta":-1}`
-  - `POST /inventory/sync` with body `{"SKU-300":2,"SKU-400":8}` (simulates HQ push)
-- Notifications
-  - `GET /notifications` (shows `STOCK_LOW` events from inventory)
-- Loyalty
-  - `GET /loyalty/offers/{customerId}` (default offers seeded)
-  - `POST /loyalty/offers/{customerId}` to override offers for a user
-- Finance gateway
-  - `POST /finance/apply` with body `{"customerId":"c1","amount":1500,"termMonths":12}`
-- Reporting
-  - `GET /reports/snapshot` (aggregate counts across services)
+## Key Endpoints (monolith or via gateway `/api/**`)
+- Pricing: `GET/POST /pricing/rules`, `POST /pricing/price`
+- Inventory: `GET /inventory`, `GET /inventory/{sku}`, `POST /inventory/adjust`, `POST /inventory/sync`
+- Notifications: `GET /notifications`
+- Loyalty: `GET/POST /loyalty/offers/{customerId}`
+- Finance: `POST /finance/apply`
+- Reporting: `GET /reports/snapshot`
+- UI: `/` (static page using current origin)
+- Actuator: `/actuator/health`, `/actuator/info`
 
-## Package map (C4 component-ish)
-- `com.destore.pricing` (PricingController/Service, promotion rules)
-- `com.destore.inventory` (InventoryController/Service, HQ sync stub, stock-low event)
-- `com.destore.notification` (NotificationController/Service, event listener)
-- `com.destore.loyalty` (LoyaltyController/Service)
-- `com.destore.finance` (FinanceController/Service, Enabling stub)
-- `com.destore.reporting` (ReportingController/Service)
-- `com.destore.common.events` (shared domain events)
+## Architecture (Candidate A – Selected)
+- Style: Service-oriented modular monolith with profiles; API gateway at `/api/**`.
+- Bounded contexts (packages):
+  - `gateway` (RestClient proxy)
+  - `pricing` (rules, calculation, JPA persistence)
+  - `inventory` (stock, HQ sync stub, low-stock events, JPA persistence)
+  - `notification` (event/Kafka consumer)
+  - `loyalty` (per-customer offers, JPA persistence)
+  - `finance` (Enabling stub)
+  - `reporting` (snapshot aggregator)
+  - `common.events` (`StockLowEvent`)
+- Connectors: REST/HTTP+JSON; Spring events in-process; optional Kafka topic `stock-low`.
+- Persistence: Postgres via JPA for pricing rules, inventory items, loyalty offers. H2 for tests.
+- Profiles/Ports: monolith (8087), pricing (8081), inventory (8082), loyalty (8083), finance (8084), reporting (8085), notifications (8086), kafka (sets bootstrap servers). Gateway targets default to loopback (same port).
 
-## Talking points for the report (rewrite yourself)
-- Why this SOA-aligned cut: independent evolution of pricing/inventory/loyalty/finance; clean adapters to HQ + Enabling; events decouple alerts.
-- Trade-offs: distributed concerns (consistency, tracing) even inside a modular monolith; real deployment would split services + broker.
-- Per-service ports demonstrate deployability behind an API Gateway/front-end; the prototype keeps them co-located for simplicity.
-- Prototype coverage vs backlog: shows connectors and data flow; persistence, authZ/authN, and production messaging are intentionally stubbed.
-- Kafka profile shows how alerts/reporting could be decoupled asynchronously; document that a proper broker replaces the in-memory event bus.
+## Alternate Candidate (B) – Microservices (Not Implemented)
+Independent services per bounded context, DB-per-service, Kafka backbone, API Gateway with auth/rate limiting. Current prototype is the stepping stone.
+
+## Design Mapping
+- Entry: `DestoreApplication`
+- Gateway: `GatewayController`
+- Pricing: `PricingController`, `PricingService`, `PricingRuleEntity/Repository`
+- Inventory: `InventoryController`, `InventoryService`, `InventoryItemEntity/Repository`, `StockLowEvent`
+- Notifications: `NotificationService` (@EventListener, @KafkaListener), `NotificationController`
+- Loyalty: `LoyaltyController`, `LoyaltyService`, `LoyaltyOfferEntity/Repository`
+- Finance: `FinanceController`, `FinanceService`, `FinanceRequest/Decision`
+- Reporting: `ReportingController`, `ReportingService`, `ReportSnapshot`
+- Config: `application.yml` (profiles, datasource, gateway bases, Kafka toggle), `KafkaConfig` (conditional)
+- UI: `src/main/resources/static/index.html`
+- Build/Infra: `pom.xml`, `Dockerfile`, `docker-compose.yml`
+
+## Evaluation Snapshot (Prototype Coverage)
+- Implemented: pricing rules & price calc; inventory with low-stock alerts; loyalty offers; finance stub; notifications; reporting snapshot; gateway; UI; optional Kafka; Postgres persistence for core domains.
+- Gaps (intentional for prototype): authn/z, real email/SMS, advanced reporting, observability hardening, resilience patterns.
+
+## Tests
+- `mvn test` (profiles `monolith,test`, H2): PricingServiceTest (promo math), InventoryServiceTest (low-stock event).
+
+## Docker
+- `Dockerfile`: multi-stage build (Maven + JRE).
+- `docker-compose.yml`: Postgres (volume `pgdata`), Kafka/Zookeeper, optional `destore-app` (monolith,kafka) mapped to host 8087 (adjust as needed).
+
+## Coursework Report Alignment (S1 i–iv)
+- S1(i) Two candidates: A) Service-oriented modular monolith with profiles (selected), B) Distributed microservices with broker.
+- S1(ii) Rationale: A meets prototype goals with clear seams, simpler ops, consistent data; profiles show deployability; Kafka toggle shows async path. Trade-off: shared DB and not independently scalable per module.
+- S1(iii) Design: Context/logical/runtime/deployment/data views; scope mapping to endpoints; ADRs (monolith first, REST/JSON, Spring events + optional Kafka, Postgres via JPA, lightweight gateway); mapping of modules to code above.
+- S1(iv) Evaluation: Functional coverage (pricing, inventory alerts, loyalty, finance stub, reporting snapshot); quality attributes (modifiability, deployability, testability, scalability path via Kafka); risks/tech debt (auth missing, shared DB coupling, no outbox, limited observability/resilience).
+- Roadmap: OpenAPI contracts, per-service DBs, Kafka-first with outbox, real gateway/auth, observability, resilience patterns, CI/CD per service.
+
+## Demo Plan
+1) Start monolith+gateway (8087); UI at `/`.
+2) Pricing: view rules, calc price with `R-342` (3-for-2).
+3) Inventory: adjust SKU-200 below threshold; check `/notifications` for alert.
+4) Loyalty: override offers for a customer; fetch them.
+5) Finance: apply ≤2000 (approved) vs >2000 (pending).
+6) Reporting: call `/reports/snapshot`.
+7) (Optional) Kafka: run with `kafka` profile; repeat inventory adjust to see `STOCK_LOW_KAFKA`.
