@@ -26,6 +26,23 @@ services:
     networks:
       - destore-kafka
 
+  postgres:
+    image: postgres:15-alpine
+    container_name: destore-postgres
+    environment:
+      - POSTGRES_DB=destore
+      - POSTGRES_USER=destore
+      - POSTGRES_PASSWORD=destore
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks:
+      - destore-kafka
+
 networks:
   destore-kafka:
     driver: bridge
+
+volumes:
+  pgdata:

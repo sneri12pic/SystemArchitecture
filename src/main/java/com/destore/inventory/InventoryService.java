@@ -16,56 +16,68 @@ import java.util.concurrent.ConcurrentHashMap;
 @Profile({"monolith", "inventory"})
 public class InventoryService {
 
-    private final Map<String, InventoryItem> items = new ConcurrentHashMap<>();
     private final ApplicationEventPublisher eventPublisher;
     private final KafkaTemplate<String, String> kafkaTemplate;
     private final String kafkaTopic;
+    private final InventoryRepository inventoryRepository;
 
     public InventoryService(ApplicationEventPublisher eventPublisher,
                             ObjectProvider<KafkaTemplate<String, String>> kafkaTemplateProvider,
-                            @Value("${destore.kafka.topic:stock-low}") String kafkaTopic) {
+                            @Value("${destore.kafka.topic:stock-low}") String kafkaTopic,
+                            InventoryRepository inventoryRepository) {
         this.eventPublisher = eventPublisher;
         this.kafkaTemplate = kafkaTemplateProvider.getIfAvailable();
         this.kafkaTopic = kafkaTopic;
-        // Seed example stock so the prototype shows alerts immediately.
-        items.put("SKU-100", new InventoryItem("SKU-100", 12, 5));
-        items.put("SKU-200", new InventoryItem("SKU-200", 3, 4));
+        this.inventoryRepository = inventoryRepository;
+        seed();
     }
 
-    public Collection<InventoryItem> listInventory() {
-        return items.values();
+    public Collection<InventoryItemView> listInventory() {
+        return inventoryRepository.findAll().stream().map(this::toView).toList();
     }
 
-    public InventoryItem getItem(String sku) {
-        return items.get(sku);
+    public InventoryItemView getItem(String sku) {
+        return inventoryRepository.findById(sku).map(this::toView).orElse(null);
     }
 
-    public InventoryItem adjust(InventoryAdjustmentRequest request) {
-        InventoryItem current = items.getOrDefault(request.sku(), new InventoryItem(request.sku(), 0, 3));
-        int newStock = current.stock() + request.delta();
-        InventoryItem updated = new InventoryItem(current.sku(), newStock, current.reorderThreshold());
-        items.put(updated.sku(), updated);
-        publishIfLow(updated);
-        return updated;
+    public InventoryItemView adjust(InventoryAdjustmentRequest request) {
+        InventoryItemEntity current = inventoryRepository.findById(request.sku())
+                .orElse(new InventoryItemEntity(request.sku(), 0, 3));
+        current.setStock(current.getStock() + request.delta());
+        InventoryItemEntity saved = inventoryRepository.save(current);
+        publishIfLow(saved);
+        return toView(saved);
     }
 
     public void syncFromHq(Map<String, Integer> snapshot) {
         snapshot.forEach((sku, stock) -> {
-            InventoryItem current = items.getOrDefault(sku, new InventoryItem(sku, 0, 3));
-            InventoryItem updated = new InventoryItem(sku, stock, current.reorderThreshold());
-            items.put(sku, updated);
-            publishIfLow(updated);
+            InventoryItemEntity current = inventoryRepository.findById(sku)
+                    .orElse(new InventoryItemEntity(sku, 0, 3));
+            current.setStock(stock);
+            InventoryItemEntity saved = inventoryRepository.save(current);
+            publishIfLow(saved);
         });
     }
 
-    private void publishIfLow(InventoryItem item) {
-        if (item.stock() <= item.reorderThreshold()) {
-            StockLowEvent event = new StockLowEvent(item.sku(), item.stock(), item.reorderThreshold());
+    private void publishIfLow(InventoryItemEntity item) {
+        if (item.getStock() <= item.getReorderThreshold()) {
+            StockLowEvent event = new StockLowEvent(item.getSku(), item.getStock(), item.getReorderThreshold());
             eventPublisher.publishEvent(event); // local/in-memory pathway
             if (kafkaTemplate != null) {
-                String payload = "Stock low for %s: %d (threshold %d)".formatted(item.sku(), item.stock(), item.reorderThreshold());
+                String payload = "Stock low for %s: %d (threshold %d)".formatted(item.getSku(), item.getStock(), item.getReorderThreshold());
                 kafkaTemplate.send(kafkaTopic, payload);
             }
+        }
+    }
+
+    private InventoryItemView toView(InventoryItemEntity entity) {
+        return new InventoryItemView(entity.getSku(), entity.getStock(), entity.getReorderThreshold());
+    }
+
+    private void seed() {
+        if (inventoryRepository.count() == 0) {
+            inventoryRepository.save(new InventoryItemEntity("SKU-100", 12, 5));
+            inventoryRepository.save(new InventoryItemEntity("SKU-200", 3, 4));
         }
     }
 }

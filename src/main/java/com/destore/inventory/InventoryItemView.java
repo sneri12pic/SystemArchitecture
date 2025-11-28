@@ -1,6 +1,6 @@
 package com.destore.inventory;
 
-public record InventoryItem(
+public record InventoryItemView(
         String sku,
         int stock,
         int reorderThreshold

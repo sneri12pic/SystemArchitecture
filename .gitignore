@@ -1,6 +1,7 @@
 # Maven and build outputs
 target/
 .m2/
+data/
 .idea/
 .vscode/
 *.iml

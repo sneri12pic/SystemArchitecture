@@ -25,18 +25,18 @@ public class InventoryController {
     }
 
     @GetMapping
-    public Collection<InventoryItem> list() {
+    public Collection<InventoryItemView> list() {
         return inventoryService.listInventory();
     }
 
     @GetMapping("/{sku}")
-    public ResponseEntity<InventoryItem> get(@PathVariable String sku) {
-        InventoryItem item = inventoryService.getItem(sku);
+    public ResponseEntity<InventoryItemView> get(@PathVariable String sku) {
+        InventoryItemView item = inventoryService.getItem(sku);
         return item == null ? ResponseEntity.notFound().build() : ResponseEntity.ok(item);
     }
 
     @PostMapping("/adjust")
-    public ResponseEntity<InventoryItem> adjust(@Valid @RequestBody InventoryAdjustmentRequest request) {
+    public ResponseEntity<InventoryItemView> adjust(@Valid @RequestBody InventoryAdjustmentRequest request) {
         return ResponseEntity.ok(inventoryService.adjust(request));
     }
 
