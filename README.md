@@ -7,20 +7,23 @@ DE-Store prototype (architecture-visible, service-oriented). Please adapt, exten
 
 ## How to run
 1) Prereqs: JDK 17+, Maven 3.8+. No DB needed (in-memory state).
-2) Default modular-monolith: `mvn spring-boot:run` (uses local repo `.m2` in project to avoid home-folder permission issues).
+2) Default modular-monolith: `mvn spring-boot:run` (uses local repo `.m2` in project to avoid home-folder permission issues). Default port is 8087; adjust with `-Dspring-boot.run.arguments=--server.port=XXXX` if needed.
 3) Per-service ports (for stronger SOA evidence; run each in its own shell):
-   - Pricing: `mvn spring-boot:run "-Dspring-boot.run.profiles=pricing"` (port 8081)
-   - Inventory + notifications: `mvn spring-boot:run "-Dspring-boot.run.profiles=inventory"` (port 8082)
-   - Loyalty: `mvn spring-boot:run "-Dspring-boot.run.profiles=loyalty"` (port 8083)
-   - Finance gateway: `mvn spring-boot:run "-Dspring-boot.run.profiles=finance"` (port 8084)
+   - Pricing: `mvn spring-boot:run "-Dspring-boot.run.profiles=pricing" "-Dspring-boot.run.arguments=--server.port=8081"` 
+   - Inventory + notifications: `mvn spring-boot:run "-Dspring-boot.run.profiles=inventory" "-Dspring-boot.run.arguments=--server.port=8082"`
+   - Loyalty: `mvn spring-boot:run "-Dspring-boot.run.profiles=loyalty" "-Dspring-boot.run.arguments=--server.port=8083"`
+   - Finance gateway: `mvn spring-boot:run "-Dspring-boot.run.profiles=finance" "-Dspring-boot.run.arguments=--server.port=8084"`
    - Reporting aggregator (monolith-only in this prototype): stay on default run
-4) API base default: `http://localhost:8080` (see key endpoints below).
+4) API base default: `http://localhost:8087` (see key endpoints below).
 5) Optional Kafka for stock-low alerts (improves SOA/eventing story):
    - Start Kafka via Docker Compose (required): `docker-compose up -d` from project root. If `docker-compose` / `docker compose` is not available, install/enable the Docker Compose plugin in Docker Desktop first.
-   - Run with `mvn spring-boot:run "-Dspring-boot.run.profiles=inventory,kafka"` (inventory on 8082) and `mvn spring-boot:run "-Dspring-boot.run.profiles=notifications,kafka"` (notifications on 8086). Quoting the profiles avoids Maven mis-parsing on some shells.
+   - Run with `mvn spring-boot:run "-Dspring-boot.run.profiles=inventory,kafka" "-Dspring-boot.run.arguments=--server.port=8082"` and `mvn spring-boot:run "-Dspring-boot.run.profiles=notifications,kafka" "-Dspring-boot.run.arguments=--server.port=8086"`. Quoting the profiles avoids Maven mis-parsing on some shells.
    - Notifications will consume the `stock-low` topic; inventory publishes when stock is below threshold.
 6) Simple UI: when running the monolith, open `http://localhost:8080` to use the static UI (see `src/main/resources/static/index.html`) to exercise endpoints without curl.
 7) Persistence: PostgreSQL via Docker Compose (`postgres` service with volume `pgdata`). Inventory is persisted via Spring Data JPA; other bounded contexts remain in-memory.
+8) Containers: Dockerfile provided. To run everything via Compose (monolith + Postgres + Kafka):
+   - `docker-compose up --build destore-app` (or `docker-compose up --build` to start all services)
+   - App exposed on `localhost:8087`, uses Postgres service `destore-postgres`, Kafka `kafka:9092`, active profiles `monolith,kafka`.
 
 ## Key endpoints (happy-path smoke test)
 - Pricing

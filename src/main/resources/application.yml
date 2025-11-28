@@ -20,7 +20,7 @@ spring:
       hibernate.dialect: org.hibernate.dialect.PostgreSQLDialect
 
 server:
-  port: 8080
+  port: 8087
 
 management:
   endpoints:
@@ -111,3 +111,10 @@ destore:
   kafka:
     enabled: true
     topic: stock-low
+  gateway:
+    pricing: http://localhost:8087
+    inventory: http://localhost:8087
+    loyalty: http://localhost:8087
+    finance: http://localhost:8087
+    notifications: http://localhost:8087
+    reporting: http://localhost:8087

@@ -12,21 +12,23 @@ import java.util.concurrent.ConcurrentHashMap;
 public class PricingService {
 
     private final Map<String, PromotionRule> rules = new ConcurrentHashMap<>();
+    private final PricingRuleRepository repository;
 
-    public PricingService() {
-        // Seed a couple of example rules so the prototype has behaviour out of the box.
-        addRule(new PromotionRule("R-BOGOF", "Buy one get one free", PromotionType.BOGOF, 0.0, 2));
-        addRule(new PromotionRule("R-342", "3 for 2 mix-and-match", PromotionType.THREE_FOR_TWO, 0.0, 3));
-        addRule(new PromotionRule("R-LOYALTY10", "10% off for loyalty customers", PromotionType.PERCENTAGE_DISCOUNT, 10.0, 1));
-        addRule(new PromotionRule("R-FREE-DELIVERY", "Free delivery over threshold", PromotionType.FREE_DELIVERY, 5.0, 1));
+    public PricingService(PricingRuleRepository repository) {
+        this.repository = repository;
+        seedDefaults();
     }
 
     public PromotionRule addRule(PromotionRule rule) {
         rules.put(rule.id(), rule);
+        repository.save(toEntity(rule));
         return rule;
     }
 
     public Collection<PromotionRule> listRules() {
+        if (rules.isEmpty() && repository.count() > 0) {
+            repository.findAll().forEach(e -> rules.put(e.getId(), toRule(e)));
+        }
         return rules.values();
     }
 
@@ -57,5 +59,23 @@ public class PricingService {
             case FREE_DELIVERY -> rule.discountValue();
             case NONE -> 0.0;
         };
+    }
+
+    private void seedDefaults() {
+        if (repository.count() == 0) {
+            repository.save(toEntity(new PromotionRule("R-BOGOF", "Buy one get one free", PromotionType.BOGOF, 0.0, 2)));
+            repository.save(toEntity(new PromotionRule("R-342", "3 for 2 mix-and-match", PromotionType.THREE_FOR_TWO, 0.0, 3)));
+            repository.save(toEntity(new PromotionRule("R-LOYALTY10", "10% off for loyalty customers", PromotionType.PERCENTAGE_DISCOUNT, 10.0, 1)));
+            repository.save(toEntity(new PromotionRule("R-FREE-DELIVERY", "Free delivery over threshold", PromotionType.FREE_DELIVERY, 5.0, 1)));
+        }
+        repository.findAll().forEach(e -> rules.put(e.getId(), toRule(e)));
+    }
+
+    private PricingRuleEntity toEntity(PromotionRule rule) {
+        return new PricingRuleEntity(rule.id(), rule.description(), rule.type(), rule.discountValue(), rule.minimumQuantity());
+    }
+
+    private PromotionRule toRule(PricingRuleEntity entity) {
+        return new PromotionRule(entity.getId(), entity.getDescription(), entity.getType(), entity.getDiscountValue(), entity.getMinimumQuantity());
     }
 }
