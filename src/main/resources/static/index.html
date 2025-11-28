@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>DE-Store Prototype UI</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 24px; background: #f6f7fb; color: #222; }
+    h1 { margin-bottom: 4px; }
+    .sub { color: #555; margin-top: 0; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px; }
+    section { background: #fff; border: 1px solid #e0e0e0; border-radius: 8px; padding: 12px 14px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+    label { display: block; margin: 6px 0 2px; font-weight: bold; }
+    input, select, button, textarea { width: 100%; padding: 8px; margin-bottom: 6px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
+    button { cursor: pointer; background: #1f6feb; color: #fff; border: none; }
+    button:hover { background: #155bc4; }
+    pre { background: #0f172a; color: #e2e8f0; padding: 10px; border-radius: 6px; overflow: auto; min-height: 80px; }
+  </style>
+</head>
+<body>
+  <h1>DE-Store Prototype</h1>
+  <p class="sub">Quick UI to exercise the services (monolith mode assumed at <code>http://localhost:8080</code>).</p>
+
+  <div class="grid">
+    <section>
+      <h3>Pricing</h3>
+      <label>SKU</label><input id="p-sku" value="SKU-100">
+      <label>Unit Price</label><input id="p-price" type="number" value="10">
+      <label>Quantity</label><input id="p-qty" type="number" value="3">
+      <label>Promotion Rule Id</label><input id="p-rule" value="R-342">
+      <button onclick="price()">Calculate</button>
+      <pre id="p-out"></pre>
+    </section>
+
+    <section>
+      <h3>Inventory</h3>
+      <button onclick="inventory()">List Inventory</button>
+      <label>SKU</label><input id="i-sku" value="SKU-200">
+      <label>Delta</label><input id="i-delta" type="number" value="-1">
+      <button onclick="adjust()">Adjust</button>
+      <pre id="i-out"></pre>
+    </section>
+
+    <section>
+      <h3>Notifications</h3>
+      <button onclick="notifications()">Refresh</button>
+      <pre id="n-out"></pre>
+    </section>
+
+    <section>
+      <h3>Loyalty</h3>
+      <label>Customer Id</label><input id="l-cust" value="customer123">
+      <button onclick="loyalty()">Get Offers</button>
+      <pre id="l-out"></pre>
+    </section>
+
+    <section>
+      <h3>Finance (stub to Enabling)</h3>
+      <label>Customer Id</label><input id="f-cust" value="c1">
+      <label>Amount</label><input id="f-amt" type="number" value="1500">
+      <label>Term (months)</label><input id="f-term" type="number" value="12">
+      <button onclick="finance()">Apply</button>
+      <pre id="f-out"></pre>
+    </section>
+
+    <section>
+      <h3>Reporting Snapshot</h3>
+      <button onclick="report()">Refresh</button>
+      <pre id="r-out"></pre>
+    </section>
+  </div>
+
+  <script>
+    const base = 'http://localhost:8080';
+    const jsonOut = (el, data) => document.getElementById(el).textContent = JSON.stringify(data, null, 2);
+
+    async function price() {
+      const body = {
+        sku: document.getElementById('p-sku').value,
+        unitPrice: Number(document.getElementById('p-price').value),
+        quantity: Number(document.getElementById('p-qty').value),
+        promotionRuleId: document.getElementById('p-rule').value || null
+      };
+      const res = await fetch(`${base}/pricing/price`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body)});
+      jsonOut('p-out', await res.json());
+    }
+
+    async function inventory() {
+      const res = await fetch(`${base}/inventory`);
+      jsonOut('i-out', await res.json());
+    }
+
+    async function adjust() {
+      const body = { sku: document.getElementById('i-sku').value, delta: Number(document.getElementById('i-delta').value) };
+      const res = await fetch(`${base}/inventory/adjust`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body)});
+      jsonOut('i-out', await res.json());
+    }
+
+    async function notifications() {
+      const res = await fetch(`${base}/notifications`);
+      jsonOut('n-out', await res.json());
+    }
+
+    async function loyalty() {
+      const customer = document.getElementById('l-cust').value;
+      const res = await fetch(`${base}/loyalty/offers/${customer}`);
+      jsonOut('l-out', await res.json());
+    }
+
+    async function finance() {
+      const body = {
+        customerId: document.getElementById('f-cust').value,
+        amount: Number(document.getElementById('f-amt').value),
+        termMonths: Number(document.getElementById('f-term').value)
+      };
+      const res = await fetch(`${base}/finance/apply`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body)});
+      jsonOut('f-out', await res.json());
+    }
+
+    async function report() {
+      const res = await fetch(`${base}/reports/snapshot`);
+      jsonOut('r-out', await res.json());
+    }
+  </script>
+</body>
+</html>

@@ -19,6 +19,7 @@ DE-Store prototype (architecture-visible, service-oriented). Please adapt, exten
    - Start Kafka via Docker Compose (required): `docker-compose up -d` from project root. If `docker-compose` / `docker compose` is not available, install/enable the Docker Compose plugin in Docker Desktop first.
    - Run with `mvn spring-boot:run "-Dspring-boot.run.profiles=inventory,kafka"` (inventory on 8082) and `mvn spring-boot:run "-Dspring-boot.run.profiles=notifications,kafka"` (notifications on 8086). Quoting the profiles avoids Maven mis-parsing on some shells.
    - Notifications will consume the `stock-low` topic; inventory publishes when stock is below threshold.
+6) Simple UI: when running the monolith, open `http://localhost:8080` to use the static UI (see `src/main/resources/static/index.html`) to exercise endpoints without curl.
 
 ## Key endpoints (happy-path smoke test)
 - Pricing
