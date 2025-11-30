@@ -2,6 +2,21 @@ DE-Store Prototype (Service-Oriented Modular Monolith)
 
 This README blends the codebase overview with the coursework report outline. Default port is 8087.
 
+## Summary
+DE-Store is a distributed store management system (not an e-commerce site) designed to be expandable and adaptive as business needs change. It provides core store functions including price control (manager-defined pricing and promotions such as 3-for-2, BOGOF, and free delivery), inventory control (continuous stock monitoring, warehouse sync, automatic re-order requests to HQ, and low-stock warnings), loyalty offers for repeat customers, finance approval via an external “Enabling” buy-now-pay-later portal integration, and reports/analysis generated from accounting activity.
+
+This prototype is a contract pitch implementation that demonstrates two candidate architectures and a working baseline design:
+
+**Candidate A (Selected)**: Service-Oriented Modular Monolith + API Gateway
+A single deployable application with clear bounded contexts (pricing, inventory, loyalty, finance, reporting, notifications) connected via REST/HTTP + JSON through a gateway (/api/**). Internally, modules communicate using in-process domain events, with an optional Kafka path for asynchronous messaging (e.g., low-stock alerts). This approach delivers fast iteration, strong modularity, and clear seams for future service extraction.
+
+**Candidate B (Alternative)**: Full Microservices
+Independent services per capability, DB-per-service, and a Kafka/event backbone behind an API gateway (with auth, rate limiting, and resilience). This is not fully implemented here, but the prototype is structured as a stepping stone toward it.
+
+Why Candidate A was chosen: it provides the best balance for a prototype and early delivery—high modifiability, testability, and deployability in one unit, while keeping the architecture “service-shaped” so it can evolve into distributed microservices as requirements grow.
+
+The prototype includes working endpoints and a simple UI to demonstrate: pricing rules and price calculation, inventory sync/adjust and low-stock alerts (in-app and optionally via Kafka), loyalty offers, finance portal stub calls, and a reporting snapshot. The evaluation highlights strong modular structure and a clear scalability path, while noting intentional prototype gaps such as full authentication/authorization, real email/SMS integration, advanced analytics, and production-grade observability/resilience.
+
 ## Run Modes
 - Monolith + Gateway (default): `mvn spring-boot:run "-Dspring-boot.run.profiles=monolith,gateway"` (UI and APIs on 8087).
 - With Kafka: add `,kafka` (Kafka must be running): `mvn spring-boot:run "-Dspring-boot.run.profiles=monolith,gateway,kafka"`.
