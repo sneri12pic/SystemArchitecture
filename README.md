@@ -23,6 +23,9 @@ The prototype includes working endpoints and a simple UI to demonstrate: pricing
 - Split services (demo only): run each profile on its own port (pricing 8081, inventory 8082, loyalty 8083, finance 8084, notifications 8086) and point gateway targets (`destore.gateway.*`) to those ports.
 - Override port: add `"-Dspring-boot.run.arguments=--server.port=XXXX --destore.gateway.*=http://localhost:XXXX"`.
 
+## Prototype
+<img width="1874" height="912" alt="image" src="https://github.com/user-attachments/assets/0c5e8d59-2bfb-4dff-b348-1ed98b808994" />
+
 ## Key Endpoints (monolith or via gateway `/api/**`)
 - Pricing: `GET/POST /pricing/rules`, `POST /pricing/price`
 - Inventory: `GET /inventory`, `GET /inventory/{sku}`, `POST /inventory/adjust`, `POST /inventory/sync`
@@ -89,4 +92,4 @@ Independent services per bounded context, DB-per-service, Kafka backbone, API Ga
 4) Loyalty: override offers for a customer; fetch them.
 5) Finance: apply ≤2000 (approved) vs >2000 (pending).
 6) Reporting: call `/reports/snapshot`.
-7) (Optional) Kafka: run with `kafka` profile; repeat inventory adjust to see `STOCK_LOW_KAFKA`.
+7) Kafka: run with `kafka` profile; repeat inventory adjust to see `STOCK_LOW_KAFKA`.
